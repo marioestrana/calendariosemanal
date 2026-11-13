@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mi Semana">
+    <meta name="description" content="Organizador semanal interactivo con horarios, categorías y soporte offline PWA.">
+    <title>Mi Semana — Planificador Horario PWA</title>
+
+    <!-- Enlaces PWA reales para GitHub Pages -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="./icon.svg">
+    <link rel="apple-touch-icon" href="./icon.svg">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        night: {
+                            950: '#0B0F19',
+                            900: '#131926',
+                            850: '#192132',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 8px 30px -6px rgba(15, 23, 42, 0.08)',
+                        'glow-accent': '0 10px 28px -6px rgb(var(--accent-primary) / 0.45)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Ajustes para app nativa móvil y barras de desplazamiento limpias */
+        html, body {
+            overscroll-behavior-y: contain;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        input, textarea, select {
+            user-select: text;
+        }
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+        /* Ocultar scrollbar en selector de días */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Scrollbar sutil en cuadrícula */
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.25);
+            border-radius: 9999px;
+        }
+        /* Safe areas para iPhone / móviles con notch */
+        .pt-safe {
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0.6; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes cardPop {
+            from { opacity: 0; transform: translateY(6px) scale(0.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-card-in {
+            animation: cardPop 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        /* Variables dinámicas de paleta de color */
+        :root {
+            --accent-primary: 99 102 241;
+            --accent-secondary: 139 92 246;
+            --accent-tertiary: 217 70 239;
+        }
+        /* Fondo ambiental sutil dinámico */
+        .ambient-bg {
+            background-image:
+                radial-gradient(at 0% 0%, rgb(var(--accent-primary) / 0.09) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgb(var(--accent-secondary) / 0.08) 0px, transparent 50%);
+        }
+        .dark .ambient-bg {
+            background-image:
+                radial-gradient(at 0% 0%, rgb(var(--accent-primary) / 0.16) 0px, transparent 55%),
+                radial-gradient(at 100% 0%, rgb(var(--accent-secondary) / 0.13) 0px, transparent 50%);
+        }
+        /* Utilidades de degradado y acento dinámico */
+        .theme-gradient {
+            background-image: linear-gradient(135deg, rgb(var(--accent-primary)), rgb(var(--accent-secondary)), rgb(var(--accent-tertiary)));
+        }
+        .theme-gradient-2 {
+            background-image: linear-gradient(135deg, rgb(var(--accent-primary)), rgb(var(--accent-secondary)));
+        }
+        .theme-text {
+            color: rgb(var(--accent-primary));
+        }
+        .theme-bg-soft {
+            background-color: rgb(var(--accent-primary) / 0.12);
+        }
+        .theme-border-soft {
+            border-color: rgb(var(--accent-primary) / 0.28);
+        }
+        .theme-ring {
+            --tw-ring-color: rgb(var(--accent-primary));
+            border-color: rgb(var(--accent-primary));
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-night-950 dark:text-slate-100 font-sans antialiased h-[100dvh] flex flex-col overflow-hidden transition-colors duration-300 ambient-bg">
+
+    <!-- ==================== CABECERA SUPERIOR GLASSMORPHISM ==================== -->
+    <header class="pt-safe bg-white/80 dark:bg-night-900/80 backdrop-blur-xl border-b border-slate-200/70 dark:border-white/[0.07] z-20 shrink-0 shadow-xs">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl theme-gradient flex items-center justify-center text-white shadow-glow-accent ring-1 ring-white/20">
+                    <i data-lucide="calendar-heart" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-display text-lg sm:text-xl font-extrabold tracking-tight leading-none bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Mi Semana</h1>
+                        <span id="offline-badge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30">Offline</span>
+                    </div>
+                    <p id="header-subtitle" class="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1">Organizador horario</p>
+                </div>
+            </div>
+
+            <!-- Controles de vista y ajustes -->
+            <div class="flex items-center gap-1.5">
+                <!-- Toggle Vista Día / Vista Semanal Completa -->
+                <div class="bg-slate-200/70 dark:bg-night-850 p-1 rounded-xl flex items-center text-xs font-semibold border border-slate-200/50 dark:border-white/[0.06]">
+                    <button id="btn-view-day" onclick="setViewMode('day')" class="px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 theme-text dark:text-white shadow-xs transition-all flex items-center gap-1">
+                        <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>
+                        <span>Día</span>
+                    </button>
+                    <button id="btn-view-week" onclick="setViewMode('week')" class="px-3 py-1.5 rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all flex items-center gap-1">
+                        <i data-lucide="columns-3" class="w-3.5 h-3.5"></i>
+                        <span>Semana</span>
+                    </button>
+                </div>
+
+                <!-- Botón Cambiar Estilo / Color -->
+                <button onclick="openSettingsModal()" title="Cambiar colores y estilo" class="p-2.5 rounded-full theme-bg-soft theme-text hover:opacity-80 border theme-border-soft active:scale-95 transition">
+                    <i data-lucide="palette" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Botón Instalar PWA -->
+                <button id="btn-install-header" onclick="openInstallModal()" title="Instalar aplicación" class="p-2.5 rounded-full bg-slate-200/70 dark:bg-night-850 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-white/[0.06] active:scale-95 transition">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Botón Tema Claro/Oscuro -->
+                <button onclick="toggleTheme()" title="Cambiar tema" class="p-2.5 rounded-full bg-slate-200/70 dark:bg-night-850 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-white/[0.06] active:scale-95 transition">
+                    <i id="theme-icon" data-lucide="sun" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Botón Opciones / Backup -->
+                <button onclick="openSettingsModal()" title="Opciones y respaldo" class="p-2.5 rounded-full bg-slate-200/70 dark:bg-night-850 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-white/[0.06] active:scale-95 transition">
+                    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Selector Táctil de Días (Lunes a Domingo) -->
+        <div id="day-tabs-container" class="max-w-5xl mx-auto px-3 pb-3 pt-1">
+            <div id="day-tabs" class="grid grid-cols-7 gap-1.5">
+                <!-- Generado dinámicamente por JS -->
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== BANNER DISCRETO DE INSTALACIÓN PWA ==================== -->
+    <div id="pwa-banner" class="hidden theme-gradient-2 text-white px-4 py-2 text-xs flex items-center justify-between gap-2 shrink-0 shadow-md z-10">
+        <div class="flex items-center gap-2">
+            <i data-lucide="smartphone" class="w-4 h-4 shrink-0"></i>
+            <span>Instala <strong>Mi Semana</strong> en tu móvil para acceso rápido sin conexión.</span>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="triggerPwaInstall()" class="bg-white text-slate-900 font-bold px-2.5 py-1 rounded-lg shadow-xs active:scale-95 transition">Instalar</button>
+            <button onclick="dismissPwaBanner()" class="p-1 text-white/80 hover:text-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== ÁREA PRINCIPAL: CUADRÍCULA HORARIA ==================== -->
+    <main id="schedule-scroll-area" class="flex-1 overflow-y-auto overflow-x-hidden custom-scroll relative">
+        <div class="max-w-5xl mx-auto min-h-full relative">
+            
+            <!-- Vista de Día Único -->
+            <div id="day-view-wrapper" class="relative pb-28">
+                <!-- Tarjeta de Resumen Inteligente y Progreso del Día (Oculta) -->
+                <div class="hidden px-3.5 pt-3 pb-2">
+                    <div class="rounded-[28px] bg-white/90 dark:bg-night-900/90 backdrop-blur-md border border-slate-200/80 dark:border-white/[0.08] p-4 shadow-soft">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <h2 id="selected-day-title" class="font-display text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Lunes</h2>
+                                <span id="selected-day-badge" class="hidden text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full theme-bg-soft theme-text border theme-border-soft">Hoy</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="day-stats-pill" class="text-[11px] font-semibold px-3 py-1 rounded-full bg-slate-100 dark:bg-night-850 text-slate-600 dark:text-slate-300 tabular-nums">0 actividades · 0h</span>
+                                <button id="btn-go-today" onclick="goToToday()" class="text-[11px] font-bold theme-text hover:opacity-80 px-2.5 py-1 rounded-full transition">Hoy</button>
+                            </div>
+                        </div>
+
+                        <!-- Mini barra de progreso del día -->
+                        <div class="mt-3 w-full h-2 rounded-full bg-slate-100 dark:bg-night-850 overflow-hidden">
+                            <div id="day-progress-bar" style="width: 0%" class="h-full rounded-full theme-gradient transition-all duration-500"></div>
+                        </div>
+                        
+                        <!-- Texto de porcentaje -->
+                        <div class="mt-1 flex justify-end">
+                            <span id="day-progress-text" class="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenedor relativo de horas y bloques de eventos -->
+                <div id="day-grid-container" class="relative select-none mt-1">
+                    <!-- Las filas de horas y eventos se renderizan aquí -->
+                </div>
+            </div>
+
+            <!-- Vista Semanal Completa (7 columnas con scroll horizontal suave en móvil) -->
+            <div id="week-view-wrapper" class="hidden pb-28 overflow-x-auto custom-scroll">
+                <div id="week-grid-container" class="min-w-[820px] relative">
+                    <!-- Cuadrícula semanal de 7 días renderizada por JS -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- ==================== BOTÓN FLOTANTE (FAB) PARA AÑADIR EVENTO ==================== -->
+    <button onclick="openEventModal()" aria-label="Añadir actividad" class="fixed right-5 bottom-6 z-30 mb-safe w-14 h-14 rounded-full theme-gradient hover:brightness-110 text-white shadow-glow-accent ring-1 ring-white/25 flex items-center justify-center active:scale-90 transition-all duration-200">
+        <i data-lucide="plus" class="w-7 h-7 stroke-[2.5]"></i>
+    </button>
+
+    <!-- ==================== MODAL: CREAR / EDITAR EVENTO (BOTTOM SHEET) ==================== -->
+    <div id="event-modal" onclick="if(event.target === this) closeEventModal()" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-950/75 backdrop-blur-md p-0 sm:p-4">
+        <div class="bg-white dark:bg-night-900 w-full max-w-lg rounded-t-[34px] sm:rounded-[34px] border-t sm:border border-slate-200/80 dark:border-white/10 shadow-2xl overflow-hidden animate-slide-up max-h-[92dvh] flex flex-col">
+            <!-- Tirador móvil (Drag Handle) -->
+            <div class="sm:hidden pt-2.5 pb-1 flex justify-center shrink-0">
+                <div class="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
+            </div>
+
+            <!-- Cabecera Modal -->
+            <div class="px-5 py-3.5 border-b border-slate-200/70 dark:border-white/[0.07] flex items-center justify-between shrink-0">
+                <h2 id="modal-title" class="font-display text-lg font-extrabold tracking-tight">Nueva actividad</h2>
+                <button onclick="closeEventModal()" class="p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-night-850 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Formulario con scroll -->
+            <form id="event-form" onsubmit="saveEvent(event)" class="p-5 space-y-4 overflow-y-auto custom-scroll">
+                <input type="hidden" id="event-id">
+
+                <!-- Título -->
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Actividad o título *</label>
+                    <input type="text" id="event-title" required placeholder="Ej. Gimnasio, Clase de Cálculo, Reunión..." class="w-full px-4 py-3 rounded-full bg-slate-100/90 dark:bg-night-850 border border-slate-200/80 dark:border-white/[0.08] focus:outline-none text-sm font-semibold placeholder:font-normal">
+                </div>
+
+                <!-- Días de la semana (Selección múltiple circular para repetir) -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Días de la semana *</label>
+                        <div class="flex gap-2 text-[11px] font-bold">
+                            <button type="button" onclick="selectPresetDays('weekdays')" class="theme-text hover:underline">Lun–Vie</button>
+                            <span class="text-slate-400">·</span>
+                            <button type="button" onclick="selectPresetDays('all')" class="theme-text hover:underline">Todos</button>
+                        </div>
+                    </div>
+                    <div id="modal-days-selector" class="grid grid-cols-7 gap-1.5">
+                        <!-- Botones L M X J V S D -->
+                    </div>
+                </div>
+
+                <!-- Horario: Inicio, Fin y Presets de duración -->
+                <div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Hora inicio</label>
+                            <input type="time" id="event-start" required step="900" class="w-full px-4 py-2.5 rounded-full bg-slate-100/90 dark:bg-night-850 border border-slate-200/80 dark:border-white/[0.08] focus:border-indigo-500 outline-none text-sm font-bold tabular-nums">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Hora fin</label>
+                            <input type="time" id="event-end" required step="900" class="w-full px-4 py-2.5 rounded-full bg-slate-100/90 dark:bg-night-850 border border-slate-200/80 dark:border-white/[0.08] focus:border-indigo-500 outline-none text-sm font-bold tabular-nums">
+                        </div>
+                    </div>
+                    <!-- Botones rápidos de duración -->
+                    <div class="flex items-center gap-1.5 mt-2 overflow-x-auto no-scrollbar">
+                        <span class="text-[11px] font-medium text-slate-400 mr-1 shrink-0">Duración:</span>
+                        <button type="button" onclick="applyDurationPreset(30)" class="px-3 py-1 rounded-full bg-slate-100 dark:bg-night-850 hover:bg-indigo-500/15 hover:text-indigo-500 text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/[0.06] transition shrink-0">+30m</button>
+                        <button type="button" onclick="applyDurationPreset(60)" class="px-3 py-1 rounded-full bg-slate-100 dark:bg-night-850 hover:bg-indigo-500/15 hover:text-indigo-500 text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/[0.06] transition shrink-0">+1h</button>
+                        <button type="button" onclick="applyDurationPreset(90)" class="px-3 py-1 rounded-full bg-slate-100 dark:bg-night-850 hover:bg-indigo-500/15 hover:text-indigo-500 text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/[0.06] transition shrink-0">+1h 30m</button>
+                        <button type="button" onclick="applyDurationPreset(120)" class="px-3 py-1 rounded-full bg-slate-100 dark:bg-night-850 hover:bg-indigo-500/15 hover:text-indigo-500 text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/[0.06] transition shrink-0">+2h</button>
+                    </div>
+                </div>
+
+                <!-- Categoría / Tema personalizado -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Tema / Categoría</label>
+                        <button type="button" onclick="openTopicCreator()" class="text-[11px] font-bold theme-text hover:underline flex items-center gap-1">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                            <span>Crear o editar temas</span>
+                        </button>
+                    </div>
+                    <div id="category-selector" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <!-- Renderizado dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Fondo / Mundo visual de la tarea -->
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Fondo / Mundo de la tarea</label>
+                    <div id="world-selector" class="grid grid-cols-3 gap-2">
+                        <!-- Renderizado dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Notas opcionales -->
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Notas / Ubicación (opcional)</label>
+                    <textarea id="event-notes" rows="2" placeholder="Aula 204, llevar material, enlace..." class="w-full px-4 py-3 rounded-3xl bg-slate-100/90 dark:bg-night-850 border border-slate-200/80 dark:border-white/[0.08] focus:border-indigo-500 outline-none text-sm resize-none"></textarea>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="pt-2 pb-safe flex items-center gap-2.5">
+                    <button type="button" id="btn-delete-event" onclick="deleteCurrentEvent()" class="hidden px-4 py-3.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 font-bold text-sm transition flex items-center justify-center gap-1.5 active:scale-95">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Eliminar</span>
+                    </button>
+                    <button type="submit" class="flex-1 py-3.5 px-5 rounded-full theme-gradient-2 hover:brightness-110 text-white font-bold text-sm shadow-glow-accent active:scale-[0.98] transition">
+                        Guardar horario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: OPCIONES, RANGO HORARIO Y BACKUP ==================== -->
+    <div id="settings-modal" onclick="if(event.target === this) closeSettingsModal()" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-950/75 backdrop-blur-md p-0 sm:p-4">
+        <div class="bg-white dark:bg-night-900 w-full max-w-md rounded-t-[34px] sm:rounded-[34px] border-t sm:border border-slate-200/80 dark:border-white/10 shadow-2xl overflow-hidden animate-slide-up max-h-[90dvh] flex flex-col">
+            <div class="sm:hidden pt-2.5 pb-1 flex justify-center shrink-0">
+                <div class="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
+            </div>
+            <div class="px-5 py-3.5 border-b border-slate-200/70 dark:border-white/[0.07] flex items-center justify-between shrink-0">
+                <h2 class="font-display text-lg font-extrabold">Estilo, Ajustes y Respaldo</h2>
+                <button onclick="closeSettingsModal()" class="p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-5 pb-safe overflow-y-auto custom-scroll">
+                <!-- Selector de Paleta de Colores -->
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Estilo y combinación de colores de la app</label>
+                    <div id="palette-selector" class="grid grid-cols-2 gap-2.5">
+                        <!-- Renderizado dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Gestión de Temas / Categorías Personalizadas -->
+                <div class="pt-3 border-t border-slate-200/70 dark:border-white/[0.07]">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Mis temas de actividades</label>
+                        <button type="button" onclick="openTopicCreator()" class="text-xs font-bold theme-text hover:underline flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Nuevo tema</span>
+                        </button>
+                    </div>
+                    <div id="settings-topics-list" class="space-y-2">
+                        <!-- Lista de temas editables renderizada por JS -->
+                    </div>
+                </div>
+
+                <!-- Rango de horas visible -->
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Rango horario del calendario</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <span class="text-xs font-medium text-slate-500">Desde</span>
+                            <select id="setting-start-hour" onchange="updateHourRange()" class="mt-1 w-full px-3 py-2.5 rounded-xl bg-slate-100/90 dark:bg-night-850 border border-slate-200/80 dark:border-white/[0.08] text-sm font-bold tabular-nums outline-none">
+                                <option value="0">00:00</option>
+                                <option value="5">05:00</option>
+                                <option value="6" selected>06:00</option>
+                                <option value="7">07:00</option>
+                                <option value="8">08:00</option>
+                            </select>
+                        </div>
+                        <div>
+                            <span class="text-xs font-medium text-slate-500">Hasta</span>
+                            <select id="setting-end-hour" onchange="updateHourRange()" class="mt-1 w-full px-3 py-2.5 rounded-xl bg-slate-100/90 dark:bg-night-850 border border-slate-200/80 dark:border-white/[0.08] text-sm font-bold tabular-nums outline-none">
+                                <option value="20">20:00</option>
+                                <option value="21">21:00</option>
+                                <option value="22">22:00</option>
+                                <option value="23" selected>23:00</option>
+                                <option value="24">24:00</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Respaldo y Exportación -->
+                <div class="pt-3 border-t border-slate-200/70 dark:border-white/[0.07]">
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Copia de seguridad (JSON)</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button onclick="exportScheduleJSON()" class="py-2.5 px-4 rounded-full bg-slate-100/90 dark:bg-night-850 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-white/[0.06] text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95">
+                            <i data-lucide="download" class="w-4 h-4 theme-text"></i>
+                            <span>Exportar</span>
+                        </button>
+                        <label class="py-2.5 px-4 rounded-full bg-slate-100/90 dark:bg-night-850 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-white/[0.06] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95">
+                            <i data-lucide="upload" class="w-4 h-4 text-emerald-500"></i>
+                            <span>Importar</span>
+                            <input type="file" accept=".json" onchange="importScheduleJSON(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Acciones rápidas sobre la semana -->
+                <div class="pt-3 border-t border-slate-200/70 dark:border-white/[0.07] space-y-2.5">
+                    <button onclick="loadSampleSchedule()" class="w-full py-2.5 px-4 rounded-full bg-slate-100/90 dark:bg-night-850 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-white/[0.06] text-xs font-bold flex items-center justify-center gap-2 transition">
+                        <i data-lucide="sparkles" class="w-4 h-4 theme-text"></i>
+                        <span>Cargar semana de ejemplo</span>
+                    </button>
+                    <div id="clear-confirm-box">
+                        <button onclick="askClearWeek()" class="w-full py-2.5 px-4 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 text-xs font-bold flex items-center justify-center gap-2 transition">
+                            <i data-lucide="trash" class="w-4 h-4"></i>
+                            <span>Limpiar toda la semana</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: INSTALACIÓN PWA EN MÓVIL ==================== -->
+    <div id="install-modal" onclick="if(event.target === this) closeInstallModal()" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-950/75 backdrop-blur-md p-0 sm:p-4">
+        <div class="bg-white dark:bg-night-900 w-full max-w-md rounded-t-[34px] sm:rounded-[34px] border-t sm:border border-slate-200/80 dark:border-white/10 shadow-2xl overflow-hidden animate-slide-up">
+            <div class="sm:hidden pt-2.5 pb-1 flex justify-center">
+                <div class="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
+            </div>
+            <div class="px-5 py-3.5 border-b border-slate-200/70 dark:border-white/[0.07] flex items-center justify-between">
+                <h2 class="font-display text-lg font-extrabold">Instalar en el móvil (PWA)</h2>
+                <button onclick="closeInstallModal()" class="p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 pb-safe text-xs text-slate-600 dark:text-slate-300">
+                <div id="native-install-section" class="hidden p-4 rounded-3xl theme-bg-soft border theme-border-soft flex items-center justify-between gap-3">
+                    <div>
+                        <p class="font-bold text-slate-900 dark:text-white">Instalación directa disponible</p>
+                        <p class="text-[11px] opacity-80">Añádela como app nativa a tu pantalla de inicio.</p>
+                    </div>
+                    <button onclick="triggerPwaInstall(); closeInstallModal();" class="px-4 py-2 rounded-full theme-gradient-2 text-white font-bold shrink-0">Instalar</button>
+                </div>
+
+                <div class="p-4 rounded-3xl bg-slate-100/90 dark:bg-night-850 space-y-2">
+                    <p class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <i data-lucide="smartphone" class="w-4 h-4 theme-text"></i>
+                        <span>Android (Chrome / Edge)</span>
+                    </p>
+                    <p>Pulsa el menú <strong>⋮</strong> arriba a la derecha del navegador y selecciona <strong>"Instalar aplicación"</strong> o <strong>"Añadir a pantalla de inicio"</strong>.</p>
+                </div>
+
+                <div class="p-4 rounded-3xl bg-slate-100/90 dark:bg-night-850 space-y-2">
+                    <p class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <i data-lucide="compass" class="w-4 h-4 theme-text"></i>
+                        <span>iPhone / iPad (Safari)</span>
+                    </p>
+                    <p>Pulsa el botón <strong>Compartir</strong> en la barra inferior y elige <strong>"Añadir a pantalla de inicio"</strong>.</p>
+                </div>
+
+                <p id="sw-status-text" class="text-[11px] text-center text-slate-400 font-medium">Almacenamiento local listo</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: CREAR / EDITAR TEMA PERSONALIZADO ==================== -->
+    <div id="topic-modal" onclick="if(event.target === this) closeTopicModal()" style="z-index: 9999;" class="fixed inset-0 hidden items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-md p-0 sm:p-4">
+        <div class="bg-white dark:bg-night-900 w-full max-w-md rounded-t-[34px] sm:rounded-[34px] border-t sm:border border-slate-200/80 dark:border-white/10 shadow-2xl overflow-hidden animate-slide-up max-h-[90dvh] flex flex-col">
+            <div class="sm:hidden pt-2.5 pb-1 flex justify-center shrink-0">
+                <div class="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
+            </div>
+            <div class="px-5 py-3.5 border-b border-slate-200/70 dark:border-white/[0.07] flex items-center justify-between shrink-0">
+                <h2 id="topic-modal-title" class="font-display text-lg font-extrabold">Nuevo tema de actividad</h2>
+                <button onclick="closeTopicModal()" class="p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="topic-form" onsubmit="saveCustomTopic(event)" class="p-5 space-y-4 overflow-y-auto custom-scroll pb-safe">
+                <input type="hidden" id="topic-id">
+
+                <!-- Vista previa en vivo del tema -->
+                <div id="topic-preview-card" class="rounded-[24px] border-l-[5px] p-3.5 transition-all shadow-xs">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span id="topic-preview-emoji" class="text-base">⚽</span>
+                            <p id="topic-preview-name" class="font-display text-sm font-bold truncate">Entrenamiento de Fútbol</p>
+                        </div>
+                        <span id="topic-preview-badge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full">Fútbol</span>
+                    </div>
+                </div>
+
+                <!-- Nombre e Icono -->
+                <div class="grid grid-cols-[76px_1fr] gap-2.5">
+                    <div>
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Icono</label>
+                        <input type="text" id="topic-emoji" maxlength="4" value="⚽" oninput="updateTopicPreview()" class="w-full px-2 py-2.5 rounded-full bg-slate-100/90 dark:bg-night-850 border border-slate-200/80 dark:border-white/[0.08] text-center text-lg outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Nombre del tema *</label>
+                        <input type="text" id="topic-name" required placeholder="Ej. Fútbol, Estudio, Música..." oninput="updateTopicPreview()" class="w-full px-4 py-2.5 rounded-full bg-slate-100/90 dark:bg-night-850 border border-slate-200/80 dark:border-white/[0.08] text-sm font-bold outline-none">
+                    </div>
+                </div>
+
+                <!-- Emojis rápidos -->
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    <span class="text-[11px] font-medium text-slate-400 shrink-0">Sugeridos:</span>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='⚽'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">⚽</button>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='📚'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">📚</button>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='💻'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">💻</button>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='🏋️'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">🏋️</button>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='🎸'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">🎸</button>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='🎨'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">🎨</button>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='🧘'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">🧘</button>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='🩺'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">🩺</button>
+                    <button type="button" onclick="document.getElementById('topic-emoji').value='🔥'; updateTopicPreview();" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-night-850 hover:scale-105 text-sm shrink-0 transition">🔥</button>
+                </div>
+
+                <!-- Selector de Color Principal del Tema -->
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Color del tema</label>
+                    <div id="topic-color-grid" class="grid grid-cols-4 gap-2">
+                        <!-- Renderizado dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Mundo por defecto opcional -->
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Fondo / Mundo predeterminado</label>
+                    <div id="topic-world-grid" class="grid grid-cols-3 gap-2">
+                        <!-- Renderizado dinámicamente -->
+                    </div>
+                </div>
+
+                <div class="pt-2 flex items-center gap-2.5">
+                    <button type="button" id="btn-delete-topic" onclick="deleteCustomTopic()" class="hidden px-4 py-3 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 font-bold text-sm transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Borrar</span>
+                    </button>
+                    <button type="submit" class="flex-1 py-3 px-5 rounded-full theme-gradient-2 hover:brightness-110 text-white font-bold text-sm shadow-glow-accent active:scale-[0.98] transition">
+                        Guardar tema
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== NOTIFICACIÓN TOAST NO INTRUSIVA ==================== -->
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-300 transform -translate-y-2">
+        <div class="bg-slate-900/95 dark:bg-night-850/95 backdrop-blur-md text-white border border-white/10 px-5 py-2.5 rounded-full shadow-2xl text-xs font-semibold flex items-center gap-2">
+            <i id="toast-icon" data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+            <span id="toast-message">Guardado</span>
+        </div>
+    </div>
+
+    <!-- ==================== LÓGICA DE APLICACIÓN Y PWA ==================== -->
+    <script>
+        /* ==========================================================================
+           1. REGISTRO REAL DEL SERVICE WORKER PARA GITHUB PAGES
+           ========================================================================== */
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(() => {
+                        const statusEl = document.getElementById('sw-status-text');
+                        if (statusEl) statusEl.textContent = 'Modo Offline: Activo y listo';
+                    })
+                    .catch((err) => {
+                        console.warn('Error registrando SW:', err);
+                        const statusEl = document.getElementById('sw-status-text');
+                        if (statusEl) statusEl.textContent = 'Almacenamiento local listo';
+                    });
+            });
+        }
+
+        let deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('pwa-banner').classList.remove('hidden');
+            document.getElementById('native-install-section').classList.remove('hidden');
+        });
+
+        function triggerPwaInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => {
+                    deferredPrompt = null;
+                    document.getElementById('pwa-banner').classList.add('hidden');
+                });
+            } else {
+                openInstallModal();
+            }
+        }
+
+        function dismissPwaBanner() {
+            document.getElementById('pwa-banner').classList.add('hidden');
+        }
+
+        /* ==========================================================================
+           2. ESTADO DE LA APLICACIÓN Y DATOS
+           ========================================================================== */
+        const STORAGE_KEY = 'mi_semana_events_v1';
+        const SETTINGS_KEY = 'mi_semana_settings_v1';
+        const TOPICS_KEY = 'mi_semana_topics_v1';
+
+        const DAYS = [
+            { id: 0, short: 'Lun', letter: 'L', full: 'Lunes' },
+            { id: 1, short: 'Mar', letter: 'M', full: 'Martes' },
+            { id: 2, short: 'Mié', letter: 'X', full: 'Miércoles' },
+            { id: 3, short: 'Jue', letter: 'J', full: 'Jueves' },
+            { id: 4, short: 'Vie', letter: 'V', full: 'Viernes' },
+            { id: 5, short: 'Sáb', letter: 'S', full: 'Sábado' },
+            { id: 6, short: 'Dom', letter: 'D', full: 'Domingo' }
+        ];
+
+        const TOPIC_COLORS = {
+            red: {
+                id: 'red',
+                name: 'Rojo',
+                swatch: '#ef4444',
+                bg: 'bg-red-500/14 dark:bg-red-500/20',
+                border: 'border-red-500',
+                badge: 'bg-red-500/20 text-red-700 dark:text-red-200',
+                text: 'text-red-950 dark:text-red-100',
+                subtext: 'text-red-700/90 dark:text-red-300/90',
+                dot: 'bg-red-500'
+            },
+            blue: {
+                id: 'blue',
+                name: 'Azul',
+                swatch: '#3b82f6',
+                bg: 'bg-blue-500/14 dark:bg-blue-500/20',
+                border: 'border-blue-500',
+                badge: 'bg-blue-500/20 text-blue-700 dark:text-blue-200',
+                text: 'text-blue-950 dark:text-blue-100',
+                subtext: 'text-blue-700/90 dark:text-blue-300/90',
+                dot: 'bg-blue-500'
+            },
+            emerald: {
+                id: 'emerald',
+                name: 'Verde',
+                swatch: '#10b981',
+                bg: 'bg-emerald-500/14 dark:bg-emerald-500/20',
+                border: 'border-emerald-500',
+                badge: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-200',
+                text: 'text-emerald-950 dark:text-emerald-100',
+                subtext: 'text-emerald-700/90 dark:text-emerald-300/90',
+                dot: 'bg-emerald-500'
+            },
+            amber: {
+                id: 'amber',
+                name: 'Amarillo',
+                swatch: '#f59e0b',
+                bg: 'bg-amber-500/15 dark:bg-amber-500/20',
+                border: 'border-amber-500',
+                badge: 'bg-amber-500/20 text-amber-800 dark:text-amber-200',
+                text: 'text-amber-950 dark:text-amber-100',
+                subtext: 'text-amber-800/90 dark:text-amber-300/90',
+                dot: 'bg-amber-500'
+            },
+            orange: {
+                id: 'orange',
+                name: 'Naranja',
+                swatch: '#f97316',
+                bg: 'bg-orange-500/14 dark:bg-orange-500/20',
+                border: 'border-orange-500',
+                badge: 'bg-orange-500/20 text-orange-800 dark:text-orange-200',
+                text: 'text-orange-950 dark:text-orange-100',
+                subtext: 'text-orange-800/90 dark:text-orange-300/90',
+                dot: 'bg-orange-500'
+            },
+            purple: {
+                id: 'purple',
+                name: 'Morado',
+                swatch: '#8b5cf6',
+                bg: 'bg-purple-500/14 dark:bg-purple-500/20',
+                border: 'border-purple-500',
+                badge: 'bg-purple-500/20 text-purple-700 dark:text-purple-200',
+                text: 'text-purple-950 dark:text-purple-100',
+                subtext: 'text-purple-700/90 dark:text-purple-300/90',
+                dot: 'bg-purple-500'
+            },
+            pink: {
+                id: 'pink',
+                name: 'Rosa',
+                swatch: '#ec4899',
+                bg: 'bg-pink-500/14 dark:bg-pink-500/20',
+                border: 'border-pink-500',
+                badge: 'bg-pink-500/20 text-pink-700 dark:text-pink-200',
+                text: 'text-pink-950 dark:text-pink-100',
+                subtext: 'text-pink-700/90 dark:text-pink-300/90',
+                dot: 'bg-pink-500'
+            },
+            cyan: {
+                id: 'cyan',
+                name: 'Turquesa',
+                swatch: '#06b6d4',
+                bg: 'bg-cyan-500/14 dark:bg-cyan-500/20',
+                border: 'border-cyan-500',
+                badge: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-200',
+                text: 'text-cyan-950 dark:text-cyan-100',
+                subtext: 'text-cyan-700/90 dark:text-cyan-300/90',
+                dot: 'bg-cyan-500'
+            }
+        };
+
+        const DEFAULT_TOPICS = [
+            { id: 'estudio', name: 'Estudio', emoji: '📚', color: 'blue', defaultWorld: 'default' },
+            { id: 'deporte', name: 'Fútbol / Deporte', emoji: '⚽', color: 'red', defaultWorld: 'default' },
+            { id: 'trabajo', name: 'Trabajo', emoji: '💼', color: 'purple', defaultWorld: 'default' },
+            { id: 'personal', name: 'Personal', emoji: '✨', color: 'amber', defaultWorld: 'default' },
+            { id: 'importante', name: 'Importante', emoji: '🔥', color: 'orange', defaultWorld: 'default' }
+        ];
+
+        function getTopicById(topicId) {
+            const topic = state.topics.find(t => t.id === topicId) || state.topics[0] || DEFAULT_TOPICS[0];
+            const colorSpec = TOPIC_COLORS[topic.color] || TOPIC_COLORS.blue;
+            return {
+                ...colorSpec,
+                ...topic,
+                shortName: topic.name,
+                colorName: colorSpec.name,
+                swatch: colorSpec.swatch,
+                bg: colorSpec.bg,
+                border: colorSpec.border,
+                badge: colorSpec.badge,
+                text: colorSpec.text,
+                subtext: colorSpec.subtext,
+                dot: colorSpec.dot
+            };
+        }
+
+        const TASK_WORLDS = {
+            default: {
+                id: 'default',
+                name: 'Cristal',
+                emoji: '🪟',
+                preview: 'linear-gradient(135deg, rgba(148,163,184,0.22), rgba(148,163,184,0.08))',
+                cardClass: '',
+                textClass: '',
+                subtextClass: '',
+                badgeClass: '',
+                isCustom: false
+            },
+            vibrant: {
+                id: 'vibrant',
+                name: 'Degradado',
+                emoji: '🌈',
+                preview: 'linear-gradient(135deg, #6366f1, #a855f7, #ec4899)',
+                cardClass: 'bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 border-white/40 shadow-md',
+                textClass: 'text-white',
+                subtextClass: 'text-white/90',
+                badgeClass: 'bg-white/20 text-white',
+                isCustom: true
+            },
+            cosmic: {
+                id: 'cosmic',
+                name: 'Galaxia',
+                emoji: '🌌',
+                preview: 'radial-gradient(circle at top right, #38bdf8, #1e1b4b 65%, #090d16)',
+                cardClass: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-sky-500/90 via-indigo-950 to-slate-950 border-sky-400 shadow-md',
+                textClass: 'text-white',
+                subtextClass: 'text-sky-200',
+                badgeClass: 'bg-sky-400/25 text-sky-100',
+                isCustom: true
+            },
+            forest: {
+                id: 'forest',
+                name: 'Bosque Zen',
+                emoji: '🌿',
+                preview: 'linear-gradient(135deg, #059669, #10b981, #84cc16)',
+                cardClass: 'bg-gradient-to-br from-emerald-700 via-emerald-600 to-lime-600 border-lime-300 shadow-md',
+                textClass: 'text-white',
+                subtextClass: 'text-emerald-50',
+                badgeClass: 'bg-black/20 text-white',
+                isCustom: true
+            },
+            sunset: {
+                id: 'sunset',
+                name: 'Atardecer',
+                emoji: '🌅',
+                preview: 'linear-gradient(135deg, #f97316, #ef4444, #be123c)',
+                cardClass: 'bg-gradient-to-br from-amber-500 via-orange-600 to-rose-700 border-amber-200 shadow-md',
+                textClass: 'text-white',
+                subtextClass: 'text-amber-50',
+                badgeClass: 'bg-black/20 text-white',
+                isCustom: true
+            },
+            aurora: {
+                id: 'aurora',
+                name: 'Aurora',
+                emoji: '✨',
+                preview: 'linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6)',
+                cardClass: 'bg-gradient-to-r from-cyan-600 via-blue-600 to-violet-600 border-cyan-300 shadow-md',
+                textClass: 'text-white',
+                subtextClass: 'text-cyan-50',
+                badgeClass: 'bg-white/20 text-white',
+                isCustom: true
+            }
+        };
+
+        const COLOR_THEMES = {
+            indigo: {
+                id: 'indigo',
+                name: 'Azul y Morado',
+                primary: '99 102 241',
+                secondary: '139 92 246',
+                tertiary: '217 70 239',
+                preview: 'linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef)'
+            },
+            sunset: {
+                id: 'sunset',
+                name: 'Naranja y Rojo',
+                primary: '249 115 22',
+                secondary: '239 68 68',
+                tertiary: '225 29 72',
+                preview: 'linear-gradient(135deg, #f97316, #ef4444, #e11d48)'
+            },
+            nature: {
+                id: 'nature',
+                name: 'Amarillo y Verde',
+                primary: '16 185 129',
+                secondary: '132 204 22',
+                tertiary: '234 179 8',
+                preview: 'linear-gradient(135deg, #10b981, #84cc16, #eab308)'
+            },
+            ocean: {
+                id: 'ocean',
+                name: 'Cian y Turquesa',
+                primary: '6 182 212',
+                secondary: '20 184 166',
+                tertiary: '59 130 246',
+                preview: 'linear-gradient(135deg, #06b6d4, #14b8a6, #3b82f6)'
+            },
+            berry: {
+                id: 'berry',
+                name: 'Rosa y Coral',
+                primary: '236 72 153',
+                secondary: '244 63 94',
+                tertiary: '251 146 60',
+                preview: 'linear-gradient(135deg, #ec4899, #f43f5e, #fb923c)'
+            }
+        };
+
+        function getTodayIndex() {
+            const jsDay = new Date().getDay();
+            return jsDay === 0 ? 6 : jsDay - 1;
+        }
+
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        let state = {
+            selectedDay: getTodayIndex(),
+            viewMode: 'day',
+            events: [],
+            topics: [...DEFAULT_TOPICS],
+            settings: {
+                startHour: 6,
+                endHour: 23,
+                darkMode: prefersDark,
+                colorTheme: 'indigo'
+            },
+            modalSelectedDays: [getTodayIndex()],
+            modalSelectedCategory: 'trabajo',
+            modalSelectedWorld: 'default',
+            topicFormColor: 'red',
+            topicFormWorld: 'default'
+        };
+
+        const HOUR_HEIGHT = 68;
+
+        /* ==========================================================================
+           3. PERSISTENCIA EN LOCALSTORAGE
+           ========================================================================== */
+        function loadState() {
+            try {
+                const savedEvents = localStorage.getItem(STORAGE_KEY);
+                const savedSettings = localStorage.getItem(SETTINGS_KEY);
+                const savedTopics = localStorage.getItem(TOPICS_KEY);
+
+                if (savedSettings) {
+                    state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+                }
+
+                if (savedTopics) {
+                    const parsedTopics = JSON.parse(savedTopics);
+                    if (Array.isArray(parsedTopics) && parsedTopics.length > 0) {
+                        state.topics = parsedTopics;
+                    }
+                }
+
+                if (savedEvents) {
+                    state.events = JSON.parse(savedEvents);
+                } else {
+                    state.events = getDefaultSampleEvents();
+                    saveEventsToStorage();
+                }
+            } catch (e) {
+                console.error('Error cargando almacenamiento local:', e);
+                state.events = getDefaultSampleEvents();
+            }
+            applyTheme();
+        }
+
+        function saveTopicsToStorage() {
+            try {
+                localStorage.setItem(TOPICS_KEY, JSON.stringify(state.topics));
+            } catch (e) {
+                showToast('Error al guardar temas', 'alert-circle');
+            }
+        }
+
+        function saveEventsToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state.events));
+            } catch (e) {
+                showToast('Error al guardar localmente', 'alert-circle');
+            }
+        }
+
+        function saveSettingsToStorage() {
+            try {
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+            } catch (e) {}
+        }
+
+        function getDefaultSampleEvents() {
+            return [
+                { id: 'ev-1', day: 0, title: 'Planificación semanal', start: '08:30', end: '09:30', category: 'trabajo', notes: 'Revisar objetivos clave de la semana' },
+                { id: 'ev-2', day: 0, title: 'Entrenamiento fuerza', start: '18:00', end: '19:30', category: 'deporte', notes: 'Gimnasio — Rutina tren superior' },
+                { id: 'ev-3', day: 1, title: 'Bloque de estudio profundo', start: '09:00', end: '11:30', category: 'estudio', notes: 'Sin notificaciones' },
+                { id: 'ev-4', day: 2, title: 'Reunión de seguimiento', start: '10:00', end: '11:00', category: 'trabajo', notes: 'Enlace en calendario' },
+                { id: 'ev-5', day: 2, title: 'Running / Cardio', start: '19:00', end: '20:00', category: 'deporte', notes: '5 km ritmo suave' },
+                { id: 'ev-6', day: 3, title: 'Entrega de proyecto', start: '12:00', end: '13:30', category: 'importante', notes: 'Revisar checklist final' },
+                { id: 'ev-7', day: 4, title: 'Cena con amigos', start: '21:00', end: '23:00', category: 'personal', notes: 'Centro' }
+            ];
+        }
+
+        /* ==========================================================================
+           4. RENDERIZADO DE UI
+           ========================================================================== */
+        function renderDayTabs() {
+            const container = document.getElementById('day-tabs');
+            const todayIdx = getTodayIndex();
+
+            container.innerHTML = DAYS.map(day => {
+                const isSelected = state.selectedDay === day.id && state.viewMode === 'day';
+                const isToday = todayIdx === day.id;
+                const count = state.events.filter(ev => ev.day === day.id).length;
+
+                return `
+                    <button onclick="selectDay(${day.id})" class="relative flex flex-col items-center justify-center py-2 px-1 rounded-full transition-all duration-200 active:scale-95 ${
+                        isSelected
+                            ? 'theme-gradient-2 text-white shadow-glow-accent ring-1 ring-white/20'
+                            : isToday
+                                ? 'theme-bg-soft theme-text border theme-border-soft'
+                                : 'bg-slate-100/80 dark:bg-night-850/80 text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-night-850 border border-transparent'
+                    }">
+                        <span class="text-[11px] font-bold tracking-tight">${day.short}</span>
+                        <div class="mt-1 flex items-center gap-0.5 h-1.5">
+                            ${isToday ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'theme-gradient-2'}"></span>` : ''}
+                            ${count > 0 && !isToday ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/75' : 'bg-slate-400 dark:bg-slate-500'}"></span>` : ''}
+                        </div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function timeToMinutes(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        function formatDuration(minutes) {
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            if (h === 0) return `${m}m`;
+            if (m === 0) return `${h}h`;
+            return `${h}h ${m}m`;
+        }
+
+        function formatHourLabel(hour) {
+            return `${String(hour).padStart(2, '0')}:00`;
+        }
+
+        function updateDaySummaryCard(dayEvents) {
+            const activeDayObj = DAYS[state.selectedDay];
+            const todayIdx = getTodayIndex();
+            const isToday = state.selectedDay === todayIdx;
+
+            const titleEl = document.getElementById('selected-day-title');
+            if (titleEl) titleEl.textContent = activeDayObj.full;
+            const todayBadge = document.getElementById('selected-day-badge');
+            const goTodayBtn = document.getElementById('btn-go-today');
+
+            if (isToday) {
+                if (todayBadge) todayBadge.classList.remove('hidden');
+                if (goTodayBtn) goTodayBtn.classList.add('hidden');
+            } else {
+                if (todayBadge) todayBadge.classList.add('hidden');
+                if (goTodayBtn) goTodayBtn.classList.remove('hidden');
+            }
+
+            const totalMinutes = dayEvents.reduce((acc, ev) => {
+                return acc + Math.max(0, timeToMinutes(ev.end) - timeToMinutes(ev.start));
+            }, 0);
+
+            const countText = dayEvents.length === 1 ? '1 bloque' : `${dayEvents.length} bloques`;
+            const statsPill = document.getElementById('day-stats-pill');
+            if (statsPill) statsPill.textContent = `${countText} · ${formatDuration(totalMinutes)}`;
+
+            const progressBarEl = document.getElementById('day-progress-bar');
+            const progressTextEl = document.getElementById('day-progress-text');
+
+            const now = new Date();
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+
+            if (dayEvents.length === 0) {
+                if (progressBarEl) progressBarEl.style.width = '0%';
+                if (progressTextEl) progressTextEl.textContent = 'Libre';
+                return;
+            }
+
+            if (isToday) {
+                let completedMin = 0;
+                dayEvents.forEach(ev => {
+                    const s = timeToMinutes(ev.start);
+                    const e = timeToMinutes(ev.end);
+                    const dur = Math.max(0, e - s);
+                    if (nowMin >= e) completedMin += dur;
+                    else if (nowMin > s) completedMin += (nowMin - s);
+                });
+                const pct = totalMinutes > 0 ? Math.min(100, Math.round((completedMin / totalMinutes) * 100)) : 0;
+                if (progressBarEl) progressBarEl.style.width = `${pct}%`;
+                if (progressTextEl) progressTextEl.textContent = `${pct}%`;
+            } else {
+                if (progressBarEl) progressBarEl.style.width = '100%';
+                if (progressTextEl) progressTextEl.textContent = formatDuration(totalMinutes);
+            }
+        }
+
+        function renderSchedule() {
+            renderDayTabs();
+
+            const startH = Number(state.settings.startHour);
+            const endH = Number(state.settings.endHour);
+            const totalHours = Math.max(1, endH - startH);
+            const totalHeight = totalHours * HOUR_HEIGHT;
+
+            const dayEvents = state.events
+                .filter(ev => ev.day === state.selectedDay)
+                .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+            updateDaySummaryCard(dayEvents);
+
+            const headerSub = document.getElementById('header-subtitle');
+            if (headerSub) {
+                headerSub.textContent = `${state.events.length} ${state.events.length === 1 ? 'actividad' : 'actividades'} esta semana`;
+            }
+
+            if (state.viewMode === 'day') {
+                document.getElementById('day-view-wrapper').classList.remove('hidden');
+                document.getElementById('week-view-wrapper').classList.add('hidden');
+                renderSingleDayGrid(startH, endH, totalHeight, dayEvents);
+            } else {
+                document.getElementById('day-view-wrapper').classList.add('hidden');
+                document.getElementById('week-view-wrapper').classList.remove('hidden');
+                renderFullWeekGrid(startH, endH, totalHeight);
+            }
+
+            lucide.createIcons();
+        }
+
+        function renderSingleDayGrid(startH, endH, totalHeight, dayEvents) {
+            const container = document.getElementById('day-grid-container');
+            const TOP_PADDING = 28;
+            container.style.height = `${totalHeight + TOP_PADDING}px`;
+
+            let html = '';
+
+            for (let h = startH; h < endH; h++) {
+                const top = (h - startH) * HOUR_HEIGHT + TOP_PADDING;
+                const hourStr = formatHourLabel(h);
+                html += `
+                    <div onclick="openEventModal(null, ${state.selectedDay}, '${hourStr}')"
+                         style="top: ${top}px; height: ${HOUR_HEIGHT}px;"
+                         class="absolute inset-x-0 flex items-start group cursor-pointer hover:bg-indigo-500/[0.04] transition-colors">
+                        <div class="w-16 shrink-0 -mt-2 flex items-center justify-center text-center">
+                            <span class="text-[11px] font-bold tabular-nums text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 transition-colors bg-slate-50/80 dark:bg-night-950/80 px-1 rounded">${hourStr}</span>
+                        </div>
+                        <div class="flex-1 h-full border-t border-slate-200/80 dark:border-white/[0.06] relative mr-3 flex items-center">
+                            <div class="absolute inset-x-0 top-1/2 border-t border-dashed border-slate-200/50 dark:border-white/[0.03] pointer-events-none"></div>
+                            <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] text-indigo-500 font-semibold px-2.5 py-1 inline-flex items-center gap-1">+ Añadir a las ${hourStr}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const positionedEvents = calculateOverlaps(dayEvents);
+            const now = new Date();
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+            const isToday = state.selectedDay === getTodayIndex();
+
+            positionedEvents.forEach(({ event, colIndex, totalCols }, idx) => {
+                const startMin = timeToMinutes(event.start);
+                const endMin = Math.max(startMin + 15, timeToMinutes(event.end));
+                const durationMin = Math.max(0, timeToMinutes(event.end) - startMin);
+                const gridStartMin = startH * 60;
+                const gridEndMin = endH * 60;
+
+                if (endMin <= gridStartMin || startMin >= gridEndMin) return;
+
+                const clampedStart = Math.max(startMin, gridStartMin);
+                const clampedEnd = Math.min(endMin, gridEndMin);
+
+                const topPx = ((clampedStart - gridStartMin) / 60) * HOUR_HEIGHT + TOP_PADDING;
+                const heightPx = Math.max(34, ((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT - 6);
+
+                const cat = getTopicById(event.category);
+                const world = TASK_WORLDS[event.world] || TASK_WORLDS.default;
+                const isLive = isToday && startMin <= nowMin && endMin > nowMin;
+
+                const cardBgStyle = world.isCustom ? world.cardClass : `${cat.border} ${cat.bg}`;
+                const titleColor = world.isCustom ? world.textClass : cat.text;
+                const subtextColor = world.isCustom ? world.subtextClass : cat.subtext;
+                const timePillBg = world.isCustom ? 'bg-black/25 text-white' : `bg-white/60 dark:bg-black/25 ${cat.subtext}`;
+
+                const radiusClass = heightPx < 75 ? 'rounded-2xl' : 'rounded-[24px]';
+                const paddingClass = heightPx < 50 ? 'px-3.5 py-1' : 'px-3.5 py-2';
+
+                const gapPx = totalCols > 1 ? 6 : 0;
+                const leftExpr = `calc(4rem + (100% - 4.75rem) * ${colIndex} / ${totalCols}${colIndex > 0 ? ` + ${gapPx / 2}px` : ''})`;
+                const widthExpr = `calc((100% - 4.75rem) / ${totalCols}${totalCols > 1 ? ` - ${gapPx / 2}px` : ''})`;
+
+                html += `
+                    <div onclick="event.stopPropagation(); openEventModal('${event.id}')"
+                         style="top: ${topPx + 3}px; height: ${heightPx}px; left: ${leftExpr}; width: ${widthExpr}; animation-delay: ${Math.min(idx * 35, 210)}ms;"
+                         class="animate-card-in absolute ${radiusClass} border-l-[5px] ${cardBgStyle} backdrop-blur-md ${paddingClass} shadow-soft cursor-pointer active:scale-[0.99] transition-all overflow-hidden flex flex-col justify-center ${isLive ? 'ring-2 ring-rose-500/80 shadow-lg' : 'border border-white/50 dark:border-white/[0.08]'}">
+                        <div class="w-full min-w-0">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-sm shrink-0">${cat.emoji}</span>
+                                    <p class="font-display text-xs sm:text-sm font-bold truncate ${titleColor}">${escapeHTML(event.title)}</p>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="text-[11px] font-bold tabular-nums px-2.5 py-0.5 rounded-full ${timePillBg}">${event.start} – ${event.end}</span>
+                                </div>
+                            </div>
+                            ${heightPx >= 52 ? `
+                                <div class="flex items-center justify-between gap-2 mt-1 pl-6">
+                                    <p class="text-[11px] truncate ${subtextColor}">${event.notes ? escapeHTML(event.notes) : ''}</p>
+                                    <span class="text-[10px] font-bold tabular-nums opacity-85 shrink-0 ${subtextColor}">${formatDuration(durationMin)}</span>
+                                </div>
+                            ` : ''}
+                            ${heightPx >= 86 ? `
+                                <div class="flex items-center gap-1.5 mt-1.5 pl-6" onclick="event.stopPropagation()">
+                                    <span class="text-[9px] font-bold opacity-70 ${subtextColor}">MOVER</span>
+                                    <button type="button" aria-label="Adelantar 15 minutos" title="Adelantar 15 minutos"
+                                      onclick="event.stopPropagation(); shiftEventTime('${event.id}', -15)"
+                                      class="px-2 py-0.5 rounded-lg bg-black/10 dark:bg-white/10 text-[10px] font-extrabold active:scale-95">−15 min</button>
+                                    <button type="button" aria-label="Retrasar 15 minutos" title="Retrasar 15 minutos"
+                                      onclick="event.stopPropagation(); shiftEventTime('${event.id}', 15)"
+                                      class="px-2 py-0.5 rounded-lg bg-black/10 dark:bg-white/10 text-[10px] font-extrabold active:scale-95">+15 min</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (isToday) {
+                const nowMin = now.getHours() * 60 + now.getMinutes();
+                const gridStartMin = startH * 60;
+                const gridEndMin = endH * 60;
+                if (nowMin >= gridStartMin && nowMin <= gridEndMin) {
+                    const topPx = ((nowMin - gridStartMin) / 60) * HOUR_HEIGHT + TOP_PADDING;
+                    const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                    html += `
+                        <div style="top: ${topPx}px;" class="absolute inset-x-0 z-10 pointer-events-none flex items-center -translate-y-1/2">
+                            <div style="width: 4rem;" class="pr-1.5 flex justify-end">
+                                <span class="text-[10px] font-extrabold tabular-nums bg-rose-500 text-white px-1.5 py-0.5 rounded-md shadow-sm">${timeLabel}</span>
+                            </div>
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/25 -ml-1"></span>
+                            <div class="flex-1 h-[2px] bg-gradient-to-r from-rose-500 to-rose-500/30 mr-3"></div>
+                        </div>
+                    `;
+                }
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderFullWeekGrid(startH, endH, totalHeight) {
+            const container = document.getElementById('week-grid-container');
+            const todayIdx = getTodayIndex();
+
+            let headerHtml = `
+                <div class="sticky top-0 z-10 bg-white/90 dark:bg-night-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/[0.08] grid grid-cols-[56px_repeat(7,1fr)]">
+                    <div class="p-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center flex items-center justify-center">Hora</div>
+                    ${DAYS.map(d => `
+                        <button onclick="selectDay(${d.id}); setViewMode('day')" class="py-2.5 px-1 text-center border-l border-slate-200/70 dark:border-white/[0.06] hover:bg-slate-500/5 transition ${d.id === todayIdx ? 'theme-bg-soft' : ''}">
+                            <span class="font-display text-xs font-extrabold ${d.id === todayIdx ? 'theme-text' : 'text-slate-700 dark:text-slate-200'}">${d.short}</span>
+                            ${d.id === todayIdx ? '<span class="block mx-auto mt-0.5 w-1.5 h-1.5 rounded-full theme-gradient-2"></span>' : ''}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+
+            let bodyHtml = `<div class="relative" style="height: ${totalHeight}px;">`;
+
+            for (let h = startH; h < endH; h++) {
+                const top = (h - startH) * HOUR_HEIGHT;
+                bodyHtml += `
+                    <div style="top: ${top}px; height: ${HOUR_HEIGHT}px;" class="absolute inset-x-0 grid grid-cols-[56px_repeat(7,1fr)] border-t border-slate-200/70 dark:border-white/[0.06]">
+                        <div class="-mt-2 flex items-center justify-center text-center text-[10px] font-semibold tabular-nums text-slate-400">${formatHourLabel(h)}</div>
+                        ${DAYS.map(d => `
+                            <div onclick="openEventModal(null, ${d.id}, '${formatHourLabel(h)}')" class="border-l border-slate-200/60 dark:border-white/[0.05] hover:bg-indigo-500/5 cursor-pointer"></div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            bodyHtml += `<div class="absolute inset-0 grid grid-cols-[56px_repeat(7,1fr)] pointer-events-none"><div></div>`;
+            DAYS.forEach(d => {
+                const dEvents = state.events.filter(ev => ev.day === d.id);
+                bodyHtml += `<div class="relative h-full">`;
+                dEvents.forEach(ev => {
+                    const startMin = timeToMinutes(ev.start);
+                    const endMin = Math.max(startMin + 15, timeToMinutes(ev.end));
+                    const gridStartMin = startH * 60;
+                    const gridEndMin = endH * 60;
+                    if (endMin <= gridStartMin || startMin >= gridEndMin) return;
+
+                    const topPx = ((Math.max(startMin, gridStartMin) - gridStartMin) / 60) * HOUR_HEIGHT;
+                    const heightPx = Math.max(26, ((Math.min(endMin, gridEndMin) - Math.max(startMin, gridStartMin)) / 60) * HOUR_HEIGHT - 2);
+                    const cat = getTopicById(ev.category);
+                    const world = TASK_WORLDS[ev.world] || TASK_WORLDS.default;
+                    const weekCardStyle = world.isCustom ? world.cardClass : `${cat.border} ${cat.bg}`;
+                    const weekText = world.isCustom ? world.textClass : cat.text;
+                    const weekSubtext = world.isCustom ? world.subtextClass : cat.subtext;
+
+                    bodyHtml += `
+                        <div onclick="event.stopPropagation(); openEventModal('${ev.id}')"
+                             style="top: ${topPx + 1}px; height: ${heightPx}px;"
+                             class="pointer-events-auto absolute inset-x-1 rounded-2xl border-l-[3px] ${weekCardStyle} backdrop-blur-sm px-2 py-1 overflow-hidden cursor-pointer shadow-xs active:scale-95 transition">
+                            <p class="font-display text-[10px] font-bold leading-tight truncate ${weekText}">${cat.emoji} ${escapeHTML(ev.title)}</p>
+                            <p class="text-[9px] font-semibold tabular-nums mt-0.5 ${weekSubtext}">${ev.start}–${ev.end}</p>
+                            ${heightPx >= 58 ? `
+                                <div class="flex items-center gap-1 mt-1" onclick="event.stopPropagation()">
+                                    <button type="button" title="Adelantar 15 minutos" onclick="event.stopPropagation(); shiftEventTime('${ev.id}', -15)"
+                                      class="rounded-md px-1 py-0.5 bg-black/10 dark:bg-white/10 text-[8px] font-bold">−15</button>
+                                    <button type="button" title="Retrasar 15 minutos" onclick="event.stopPropagation(); shiftEventTime('${ev.id}', 15)"
+                                      class="rounded-md px-1 py-0.5 bg-black/10 dark:bg-white/10 text-[8px] font-bold">+15</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                bodyHtml += `</div>`;
+            });
+            bodyHtml += `</div>`;
+
+            bodyHtml += getCurrentTimeLineHTML(startH, endH, false);
+            bodyHtml += `</div>`;
+
+            container.innerHTML = headerHtml + bodyHtml;
+        }
+
+        function getCurrentTimeLineHTML(startH, endH, isDayView) {
+            const now = new Date();
+            const currentMin = now.getHours() * 60 + now.getMinutes();
+            const gridStartMin = startH * 60;
+            const gridEndMin = endH * 60;
+
+            if (currentMin < gridStartMin || currentMin > gridEndMin) return '';
+
+            const topPx = ((currentMin - gridStartMin) / 60) * HOUR_HEIGHT;
+            const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const leftPos = isDayView ? '4rem' : '56px';
+
+            return `
+                <div style="top: ${topPx}px;" class="absolute inset-x-0 z-10 pointer-events-none flex items-center -translate-y-1/2">
+                    <div style="width: ${leftPos};" class="pr-1.5 flex justify-end">
+                        <span class="text-[10px] font-extrabold tabular-nums bg-rose-500 text-white px-1.5 py-0.5 rounded-md shadow-sm">${timeLabel}</span>
+                    </div>
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/25 -ml-1"></span>
+                    <div class="flex-1 h-[2px] bg-gradient-to-r from-rose-500 to-rose-500/30 mr-3"></div>
+                </div>
+            `;
+        }
+
+        function calculateOverlaps(events) {
+            const result = [];
+            const sorted = [...events].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+            for (let i = 0; i < sorted.length; i++) {
+                const current = sorted[i];
+                const cStart = timeToMinutes(current.start);
+                const cEnd = timeToMinutes(current.end);
+
+                const overlapping = sorted.filter(other => {
+                    const oStart = timeToMinutes(other.start);
+                    const oEnd = timeToMinutes(other.end);
+                    return cStart < oEnd && cEnd > oStart;
+                });
+
+                const colIndex = overlapping.findIndex(e => e.id === current.id);
+                result.push({
+                    event: current,
+                    colIndex: Math.max(0, colIndex),
+                    totalCols: Math.max(1, overlapping.length)
+                });
+            }
+            return result;
+        }
+
+        /* ==========================================================================
+           5. NAVEGACIÓN Y GESTIÓN DE EVENTOS (CRUD)
+           ========================================================================== */
+        function selectDay(dayId) {
+            state.selectedDay = dayId;
+            renderSchedule();
+        }
+
+        function goToToday() {
+            state.selectedDay = getTodayIndex();
+            renderSchedule();
+            scrollToCurrentTime();
+        }
+
+        function setViewMode(mode) {
+            state.viewMode = mode;
+            const btnDay = document.getElementById('btn-view-day');
+            const btnWeek = document.getElementById('btn-view-week');
+
+            const activeClasses = ['bg-white', 'dark:bg-slate-800', 'theme-text', 'dark:text-white', 'shadow-xs'];
+            const inactiveClasses = ['text-slate-600', 'dark:text-slate-400'];
+
+            if (mode === 'day') {
+                btnDay.classList.add(...activeClasses);
+                btnDay.classList.remove(...inactiveClasses);
+                btnWeek.classList.remove(...activeClasses);
+                btnWeek.classList.add(...inactiveClasses);
+            } else {
+                btnWeek.classList.add(...activeClasses);
+                btnWeek.classList.remove(...inactiveClasses);
+                btnDay.classList.remove(...activeClasses);
+                btnDay.classList.add(...inactiveClasses);
+            }
+            renderSchedule();
+        }
+
+        function applyDurationPreset(minutes) {
+            const startInput = document.getElementById('event-start');
+            const endInput = document.getElementById('event-end');
+            if (!startInput.value) return;
+            const startMin = timeToMinutes(startInput.value);
+            const endMin = Math.min(23 * 60 + 59, startMin + minutes);
+            const h = Math.floor(endMin / 60);
+            const m = endMin % 60;
+            endInput.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        }
+
+        function openEventModal(eventId = null, presetDay = null, presetStart = null) {
+            const modal = document.getElementById('event-modal');
+            const deleteBtn = document.getElementById('btn-delete-event');
+            const titleEl = document.getElementById('modal-title');
+
+            if (eventId) {
+                const ev = state.events.find(item => item.id === eventId);
+                if (!ev) return;
+
+                titleEl.textContent = 'Editar actividad';
+                document.getElementById('event-id').value = ev.id;
+                document.getElementById('event-title').value = ev.title;
+                document.getElementById('event-start').value = ev.start;
+                document.getElementById('event-end').value = ev.end;
+                document.getElementById('event-notes').value = ev.notes || '';
+                state.modalSelectedDays = [ev.day];
+                state.modalSelectedCategory = ev.category || 'trabajo';
+                state.modalSelectedWorld = ev.world || 'default';
+                deleteBtn.classList.remove('hidden');
+            } else {
+                titleEl.textContent = 'Nueva actividad';
+                document.getElementById('event-id').value = '';
+                document.getElementById('event-title').value = '';
+                document.getElementById('event-notes').value = '';
+
+                const defaultStart = presetStart || '09:00';
+                const [h, m] = defaultStart.split(':').map(Number);
+                const nextHour = Math.min(23, h + 1);
+                const defaultEnd = `${String(nextHour).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+                document.getElementById('event-start').value = defaultStart;
+                document.getElementById('event-end').value = defaultEnd;
+
+                state.modalSelectedDays = [presetDay !== null ? presetDay : state.selectedDay];
+                state.modalSelectedCategory = 'trabajo';
+                state.modalSelectedWorld = 'default';
+                deleteBtn.classList.add('hidden');
+            }
+
+            renderModalDaysSelector();
+            renderModalCategories();
+            renderModalWorlds();
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+            setTimeout(() => document.getElementById('event-title').focus(), 100);
+        }
+
+        function closeEventModal() {
+            const modal = document.getElementById('event-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function renderModalDaysSelector() {
+            const container = document.getElementById('modal-days-selector');
+            container.innerHTML = DAYS.map(d => {
+                const active = state.modalSelectedDays.includes(d.id);
+                return `
+                    <button type="button" onclick="toggleModalDay(${d.id})" class="h-10 rounded-full text-xs font-extrabold transition-all active:scale-90 border ${
+                        active
+                            ? 'theme-gradient-2 text-white border-transparent shadow-glow-accent'
+                            : 'bg-slate-100 dark:bg-night-850 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/[0.08]'
+                    }">
+                        ${d.letter}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function toggleModalDay(dayId) {
+            const idx = state.modalSelectedDays.indexOf(dayId);
+            if (idx > -1) {
+                if (state.modalSelectedDays.length > 1) {
+                    state.modalSelectedDays.splice(idx, 1);
+                }
+            } else {
+                state.modalSelectedDays.push(dayId);
+            }
+            renderModalDaysSelector();
+        }
+
+        function selectPresetDays(preset) {
+            if (preset === 'weekdays') {
+                state.modalSelectedDays = [0, 1, 2, 3, 4];
+            } else if (preset === 'all') {
+                state.modalSelectedDays = [0, 1, 2, 3, 4, 5, 6];
+            }
+            renderModalDaysSelector();
+        }
+
+        function renderModalCategories() {
+            const container = document.getElementById('category-selector');
+            container.innerHTML = state.topics.map(topic => {
+                const cat = getTopicById(topic.id);
+                const selected = state.modalSelectedCategory === cat.id;
+                return `
+                    <div class="relative group flex items-stretch">
+                        <button type="button" onclick="selectModalCategory('${cat.id}')" class="flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-full border text-left text-xs font-bold transition-all active:scale-95 min-w-0 ${
+                            selected
+                                ? 'theme-ring theme-bg-soft text-slate-900 dark:text-white ring-1 shadow-xs'
+                                : 'border-slate-200/80 dark:border-white/[0.07] bg-slate-50 dark:bg-night-850/80 text-slate-600 dark:text-slate-300'
+                        }">
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${cat.swatch}"></span>
+                            <span class="text-sm shrink-0">${cat.emoji}</span>
+                            <span class="truncate pr-5">${escapeHTML(cat.name)}</span>
+                        </button>
+                        <button type="button" onclick="event.stopPropagation(); openTopicCreator('${cat.id}')" title="Editar color o nombre de este tema" class="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition">
+                            <i data-lucide="pencil" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function selectModalCategory(catId) {
+            state.modalSelectedCategory = catId;
+            const topic = state.topics.find(t => t.id === catId);
+            if (topic && topic.defaultWorld) {
+                state.modalSelectedWorld = topic.defaultWorld;
+                renderModalWorlds();
+            }
+            renderModalCategories();
+        }
+
+        function renderSettingsTopicsList() {
+            const container = document.getElementById('settings-topics-list');
+            if (!container) return;
+            container.innerHTML = state.topics.map(t => {
+                const cat = getTopicById(t.id);
+                const world = TASK_WORLDS[t.defaultWorld] || TASK_WORLDS.default;
+                return `
+                    <div class="flex items-center justify-between gap-2 p-2.5 rounded-3xl bg-slate-100/80 dark:bg-night-850/90 border border-slate-200/70 dark:border-white/[0.06]">
+                        <div class="flex items-center gap-2.5 min-w-0 pl-1">
+                            <span class="w-4 h-4 rounded-full shrink-0 ring-2 ring-white/40" style="background-color: ${cat.swatch}"></span>
+                            <span class="text-base shrink-0">${cat.emoji}</span>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">${escapeHTML(cat.name)}</p>
+                                <p class="text-[10px] text-slate-500 dark:text-slate-400">Color ${TOPIC_COLORS[t.color]?.name || 'Azul'} · Fondo ${world.name}</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="openTopicCreator('${cat.id}')" class="px-3 py-1.5 rounded-full bg-white dark:bg-night-900 border border-slate-200/80 dark:border-white/10 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:opacity-80 active:scale-95 transition shrink-0">
+                            Cambiar
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openTopicCreator(topicId = null) {
+            const modal = document.getElementById('topic-modal');
+            const titleEl = document.getElementById('topic-modal-title');
+            const deleteBtn = document.getElementById('btn-delete-topic');
+            if (!modal) return;
+
+            if (topicId) {
+                const existing = state.topics.find(t => String(t.id) === String(topicId));
+                if (!existing) return;
+                titleEl.textContent = 'Editar tema';
+                document.getElementById('topic-id').value = existing.id;
+                document.getElementById('topic-name').value = existing.name;
+                document.getElementById('topic-emoji').value = existing.emoji;
+                state.topicFormColor = existing.color || 'blue';
+                state.topicFormWorld = existing.defaultWorld || 'default';
+                if (state.topics.length > 1) {
+                    deleteBtn.classList.remove('hidden');
+                } else {
+                    deleteBtn.classList.add('hidden');
+                }
+            } else {
+                titleEl.textContent = 'Nuevo tema de actividad';
+                document.getElementById('topic-id').value = '';
+                document.getElementById('topic-name').value = '';
+                document.getElementById('topic-emoji').value = '⚽';
+                state.topicFormColor = 'red';
+                state.topicFormWorld = 'default';
+                deleteBtn.classList.add('hidden');
+            }
+
+            renderTopicColorGrid();
+            renderTopicWorldGrid();
+            updateTopicPreview();
+
+            document.body.appendChild(modal);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            setTimeout(() => document.getElementById('topic-name').focus(), 100);
+        }
+
+        function closeTopicModal() {
+            const modal = document.getElementById('topic-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function renderTopicColorGrid() {
+            const container = document.getElementById('topic-color-grid');
+            if (!container) return;
+            container.innerHTML = Object.values(TOPIC_COLORS).map(c => {
+                const selected = state.topicFormColor === c.id;
+                return `
+                    <button type="button" onclick="selectTopicFormColor('${c.id}')" class="flex items-center gap-2 px-3 py-2 rounded-full border text-left transition active:scale-95 ${
+                        selected
+                            ? 'theme-ring theme-bg-soft ring-1 shadow-xs'
+                            : 'border-slate-200/80 dark:border-white/[0.08] bg-slate-50 dark:bg-night-850'
+                    }">
+                        <span class="w-4 h-4 rounded-full shrink-0 shadow-xs" style="background-color: ${c.swatch}"></span>
+                        <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">${c.name}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectTopicFormColor(colorId) {
+            state.topicFormColor = colorId;
+            renderTopicColorGrid();
+            updateTopicPreview();
+        }
+
+        function renderTopicWorldGrid() {
+            const container = document.getElementById('topic-world-grid');
+            if (!container) return;
+            container.innerHTML = Object.values(TASK_WORLDS).map(w => {
+                const selected = state.topicFormWorld === w.id;
+                return `
+                    <button type="button" onclick="selectTopicFormWorld('${w.id}')" class="flex items-center gap-1.5 px-2.5 py-2 rounded-full border text-left transition active:scale-95 ${
+                        selected
+                            ? 'theme-ring theme-bg-soft ring-1 shadow-xs'
+                            : 'border-slate-200/80 dark:border-white/[0.08] bg-slate-50 dark:bg-night-850'
+                    }">
+                        <span class="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[10px]" style="background: ${w.preview}">${w.emoji}</span>
+                        <span class="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate">${w.name}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectTopicFormWorld(worldId) {
+            state.topicFormWorld = worldId;
+            renderTopicWorldGrid();
+            updateTopicPreview();
+        }
+
+        function updateTopicPreview() {
+            const nameVal = document.getElementById('topic-name').value.trim() || 'Ejemplo de actividad';
+            const emojiVal = document.getElementById('topic-emoji').value.trim() || '📌';
+            const colorSpec = TOPIC_COLORS[state.topicFormColor] || TOPIC_COLORS.red;
+            const world = TASK_WORLDS[state.topicFormWorld] || TASK_WORLDS.default;
+
+            const card = document.getElementById('topic-preview-card');
+            const nameEl = document.getElementById('topic-preview-name');
+            const emojiEl = document.getElementById('topic-preview-emoji');
+            const badgeEl = document.getElementById('topic-preview-badge');
+
+            emojiEl.textContent = emojiVal;
+            nameEl.textContent = nameVal;
+            badgeEl.textContent = nameVal;
+
+            card.className = `rounded-2xl border-l-[5px] p-3 transition-all shadow-xs ${
+                world.isCustom ? world.cardClass : `${colorSpec.border} ${colorSpec.bg}`
+            }`;
+            nameEl.className = `font-display text-sm font-bold truncate ${world.isCustom ? world.textClass : colorSpec.text}`;
+            badgeEl.className = `text-[10px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${world.isCustom ? world.badgeClass : colorSpec.badge}`;
+        }
+
+        function saveCustomTopic(e) {
+            e.preventDefault();
+            const id = document.getElementById('topic-id').value;
+            const name = document.getElementById('topic-name').value.trim();
+            const emoji = document.getElementById('topic-emoji').value.trim() || '📌';
+            if (!name) return;
+
+            if (id) {
+                const idx = state.topics.findIndex(t => t.id === id);
+                if (idx > -1) {
+                    state.topics[idx] = {
+                        ...state.topics[idx],
+                        name,
+                        emoji,
+                        color: state.topicFormColor,
+                        defaultWorld: state.topicFormWorld
+                    };
+                }
+                if (state.modalSelectedCategory === id) {
+                    state.modalSelectedWorld = state.topicFormWorld;
+                }
+                state.events.forEach(ev => {
+                    if (ev.category === id) {
+                        ev.world = state.topicFormWorld;
+                    }
+                });
+                saveEventsToStorage();
+                showToast(`Tema "${name}" actualizado`);
+            } else {
+                const newId = 'topic-' + Date.now();
+                state.topics.push({
+                    id: newId,
+                    name,
+                    emoji,
+                    color: state.topicFormColor,
+                    defaultWorld: state.topicFormWorld
+                });
+                state.modalSelectedCategory = newId;
+                state.modalSelectedWorld = state.topicFormWorld;
+                showToast(`Tema "${name}" creado`);
+            }
+
+            saveTopicsToStorage();
+            closeTopicModal();
+            renderModalCategories();
+            renderModalWorlds();
+            renderSettingsTopicsList();
+            renderSchedule();
+        }
+
+        function deleteCustomTopic() {
+            const id = document.getElementById('topic-id').value;
+            if (!id || state.topics.length <= 1) return;
+
+            state.topics = state.topics.filter(t => t.id !== id);
+            const fallbackId = state.topics[0].id;
+
+            state.events.forEach(ev => {
+                if (ev.category === id) ev.category = fallbackId;
+            });
+            if (state.modalSelectedCategory === id) {
+                state.modalSelectedCategory = fallbackId;
+            }
+
+            saveTopicsToStorage();
+            saveEventsToStorage();
+            closeTopicModal();
+            renderModalCategories();
+            renderSettingsTopicsList();
+            renderSchedule();
+            showToast('Tema eliminado');
+        }
+
+        function renderModalWorlds() {
+            const container = document.getElementById('world-selector');
+            if (!container) return;
+            container.innerHTML = Object.values(TASK_WORLDS).map(w => {
+                const selected = state.modalSelectedWorld === w.id;
+                return `
+                    <button type="button" onclick="selectModalWorld('${w.id}')" class="flex items-center gap-2 px-3 py-2 rounded-full border text-left transition-all active:scale-95 ${
+                        selected
+                            ? 'theme-ring theme-bg-soft ring-1 shadow-xs'
+                            : 'border-slate-200/80 dark:border-white/[0.07] bg-slate-50 dark:bg-night-850/80'
+                    }">
+                        <span class="w-6 h-6 rounded-full shrink-0 shadow-xs ring-1 ring-black/15 flex items-center justify-center text-[11px]" style="background: ${w.preview}">${w.emoji}</span>
+                        <span class="text-[11px] font-bold text-slate-800 dark:text-slate-100 truncate">${w.name}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectModalWorld(worldId) {
+            state.modalSelectedWorld = worldId;
+            renderModalWorlds();
+        }
+
+        function shiftEventTime(eventId, deltaMinutes) {
+            const ev = state.events.find(item => item.id === eventId);
+            if (!ev) return;
+
+            const start = timeToMinutes(ev.start) + deltaMinutes;
+            const end = timeToMinutes(ev.end) + deltaMinutes;
+            if (start < 0 || end > 24 * 60) {
+                showToast('Ese cambio dejaría la actividad fuera del día', 'alert-circle');
+                return;
+            }
+
+            const toTime = minutes => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+            ev.start = toTime(start);
+            ev.end = toTime(end);
+            saveEventsToStorage();
+            renderSchedule();
+            showToast(deltaMinutes < 0 ? 'Actividad adelantada 15 minutos' : 'Actividad retrasada 15 minutos');
+        }
+
+        function saveEvent(e) {
+            e.preventDefault();
+            const id = document.getElementById('event-id').value;
+            const title = document.getElementById('event-title').value.trim();
+            const start = document.getElementById('event-start').value;
+            const end = document.getElementById('event-end').value;
+            const notes = document.getElementById('event-notes').value.trim();
+
+            if (!title) return;
+            if (timeToMinutes(end) <= timeToMinutes(start)) {
+                showToast('La hora de fin debe ser posterior a la de inicio', 'alert-circle');
+                return;
+            }
+
+            if (id) {
+                const primaryDay = state.modalSelectedDays[0];
+                const index = state.events.findIndex(ev => ev.id === id);
+                if (index > -1) {
+                    state.events[index] = {
+                        ...state.events[index],
+                        day: primaryDay,
+                        title,
+                        start,
+                        end,
+                        category: state.modalSelectedCategory,
+                        world: state.modalSelectedWorld,
+                        notes
+                    };
+                }
+                for (let i = 1; i < state.modalSelectedDays.length; i++) {
+                    state.events.push({
+                        id: 'ev-' + Date.now() + '-' + i,
+                        day: state.modalSelectedDays[i],
+                        title,
+                        start,
+                        end,
+                        category: state.modalSelectedCategory,
+                        world: state.modalSelectedWorld,
+                        notes
+                    });
+                }
+                showToast('Actividad actualizada');
+            } else {
+                state.modalSelectedDays.forEach((dayId, idx) => {
+                    state.events.push({
+                        id: 'ev-' + Date.now() + '-' + idx,
+                        day: dayId,
+                        title,
+                        start,
+                        end,
+                        category: state.modalSelectedCategory,
+                        world: state.modalSelectedWorld,
+                        notes
+                    });
+                });
+                state.selectedDay = state.modalSelectedDays[0];
+                showToast(state.modalSelectedDays.length > 1 ? `Añadido a ${state.modalSelectedDays.length} días` : 'Actividad añadida');
+            }
+
+            saveEventsToStorage();
+            closeEventModal();
+            renderSchedule();
+        }
+
+        function deleteCurrentEvent() {
+            const id = document.getElementById('event-id').value;
+            if (!id) return;
+            state.events = state.events.filter(ev => ev.id !== id);
+            saveEventsToStorage();
+            closeEventModal();
+            renderSchedule();
+            showToast('Actividad eliminada');
+        }
+
+        /* ==========================================================================
+           6. AJUSTES, TEMA, RESPALDO JSON Y LIMPIEZA
+           ========================================================================== */
+        function toggleTheme() {
+            state.settings.darkMode = !state.settings.darkMode;
+            saveSettingsToStorage();
+            applyTheme();
+        }
+
+        function applyTheme() {
+            const htmlEl = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            const metaTheme = document.querySelector('meta[name="theme-color"]');
+
+            const palette = COLOR_THEMES[state.settings.colorTheme] || COLOR_THEMES.indigo;
+            htmlEl.style.setProperty('--accent-primary', palette.primary);
+            htmlEl.style.setProperty('--accent-secondary', palette.secondary);
+            htmlEl.style.setProperty('--accent-tertiary', palette.tertiary);
+
+            if (state.settings.darkMode) {
+                htmlEl.classList.add('dark');
+                if (icon) icon.setAttribute('data-lucide', 'sun');
+                if (metaTheme) metaTheme.setAttribute('content', '#0B0F19');
+            } else {
+                htmlEl.classList.remove('dark');
+                if (icon) icon.setAttribute('data-lucide', 'moon');
+                if (metaTheme) metaTheme.setAttribute('content', '#F8FAFC');
+            }
+            lucide.createIcons();
+        }
+
+        function renderPaletteSelector() {
+            const container = document.getElementById('palette-selector');
+            if (!container) return;
+            container.innerHTML = Object.values(COLOR_THEMES).map(t => {
+                const isSelected = (state.settings.colorTheme || 'indigo') === t.id;
+                return `
+                    <button type="button" onclick="selectColorTheme('${t.id}')" class="flex items-center gap-2.5 p-2.5 rounded-full border text-left transition-all active:scale-95 ${
+                        isSelected
+                            ? 'theme-ring theme-bg-soft ring-1 shadow-xs'
+                            : 'border-slate-200/80 dark:border-white/[0.08] bg-slate-50 dark:bg-night-850/80 hover:bg-slate-100 dark:hover:bg-night-850'
+                    }">
+                        <span class="w-7 h-7 rounded-full shrink-0 shadow-sm ring-1 ring-black/10" style="background: ${t.preview}"></span>
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-100 leading-tight pr-2">${t.name}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectColorTheme(themeId) {
+            if (!COLOR_THEMES[themeId]) return;
+            state.settings.colorTheme = themeId;
+            saveSettingsToStorage();
+            applyTheme();
+            renderPaletteSelector();
+            renderSchedule();
+            showToast(`Estilo cambiado a ${COLOR_THEMES[themeId].name}`);
+        }
+
+        function openSettingsModal() {
+            const startSelect = document.getElementById('setting-start-hour');
+            const endSelect = document.getElementById('setting-end-hour');
+            if (startSelect) startSelect.value = state.settings.startHour;
+            if (endSelect) endSelect.value = state.settings.endHour;
+            renderPaletteSelector();
+            renderSettingsTopicsList();
+            resetClearConfirmBox();
+            const modal = document.getElementById('settings-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function updateHourRange() {
+            const start = Number(document.getElementById('setting-start-hour').value);
+            const end = Number(document.getElementById('setting-end-hour').value);
+            if (end <= start) {
+                showToast('La hora final debe ser mayor que la inicial', 'alert-circle');
+                return;
+            }
+            state.settings.startHour = start;
+            state.settings.endHour = end;
+            saveSettingsToStorage();
+            renderSchedule();
+            showToast('Rango horario actualizado');
+        }
+
+        function exportScheduleJSON() {
+            const payload = {
+                app: 'Mi Semana PWA',
+                exportedAt: new Date().toISOString(),
+                settings: state.settings,
+                topics: state.topics,
+                events: state.events
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mi-semana-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Copia de seguridad descargada');
+        }
+
+        function importScheduleJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data.events)) {
+                        state.events = data.events;
+                        if (Array.isArray(data.topics) && data.topics.length > 0) {
+                            state.topics = data.topics;
+                            saveTopicsToStorage();
+                        }
+                        if (data.settings) {
+                            state.settings = { ...state.settings, ...data.settings };
+                            saveSettingsToStorage();
+                            applyTheme();
+                        }
+                        saveEventsToStorage();
+                        renderSchedule();
+                        closeSettingsModal();
+                        showToast('Horario importado correctamente');
+                    } else {
+                        showToast('Archivo JSON no válido', 'alert-circle');
+                    }
+                } catch (err) {
+                    showToast('Error al leer el archivo JSON', 'alert-circle');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function loadSampleSchedule() {
+            state.events = getDefaultSampleEvents();
+            saveEventsToStorage();
+            renderSchedule();
+            closeSettingsModal();
+            showToast('Semana de ejemplo cargada');
+        }
+
+        function askClearWeek() {
+            const box = document.getElementById('clear-confirm-box');
+            if (!box) return;
+            box.innerHTML = `
+                <div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-2">
+                    <span class="text-xs font-semibold text-rose-600 dark:text-rose-400">¿Borrar todos los eventos?</span>
+                    <div class="flex gap-1.5">
+                        <button onclick="resetClearConfirmBox()" class="px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-xs font-semibold">Cancelar</button>
+                        <button onclick="confirmClearWeek()" class="px-2.5 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-semibold">Sí, limpiar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function resetClearConfirmBox() {
+            const box = document.getElementById('clear-confirm-box');
+            if (!box) return;
+            box.innerHTML = `
+                <button onclick="askClearWeek()" class="w-full py-2.5 px-4 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 text-xs font-bold flex items-center justify-center gap-2 transition">
+                    <i data-lucide="trash" class="w-4 h-4"></i>
+                    <span>Limpiar toda la semana</span>
+                </button>
+            `;
+            lucide.createIcons();
+        }
+
+        function confirmClearWeek() {
+            state.events = [];
+            saveEventsToStorage();
+            renderSchedule();
+            closeSettingsModal();
+            showToast('Semana vaciada');
+        }
+
+        function openInstallModal() {
+            const modal = document.getElementById('install-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeInstallModal() {
+            const modal = document.getElementById('install-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        /* ==========================================================================
+           7. UTILIDADES Y TIEMPO REAL
+           ========================================================================== */
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        let toastTimer = null;
+        function showToast(message, iconName = 'check-circle-2') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = message;
+            const icon = document.getElementById('toast-icon');
+            icon.setAttribute('data-lucide', iconName);
+            icon.className = iconName === 'alert-circle' ? 'w-4 h-4 text-rose-400' : 'w-4 h-4 text-emerald-400';
+            lucide.createIcons();
+
+            toast.classList.remove('opacity-0', '-translate-y-2');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-2');
+            }, 2600);
+        }
+
+        function scrollToCurrentTime() {
+            const scrollArea = document.getElementById('schedule-scroll-area');
+            const now = new Date();
+            const currentHour = now.getHours();
+            const startH = Number(state.settings.startHour);
+            if (currentHour >= startH) {
+                const targetY = Math.max(0, (currentHour - startH - 1) * HOUR_HEIGHT);
+                scrollArea.scrollTo({ top: targetY, behavior: 'smooth' });
+            }
+        }
+
+        (function setupSwipeNavigation() {
+            let touchStartX = 0;
+            let touchStartY = 0;
+            const mainArea = document.getElementById('day-view-wrapper');
+
+            mainArea.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+
+            mainArea.addEventListener('touchend', (e) => {
+                if (state.viewMode !== 'day') return;
+                const diffX = e.changedTouches[0].screenX - touchStartX;
+                const diffY = e.changedTouches[0].screenY - touchStartY;
+
+                if (Math.abs(diffX) > 65 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+                    if (diffX < 0 && state.selectedDay < 6) {
+                        selectDay(state.selectedDay + 1);
+                    } else if (diffX > 0 && state.selectedDay > 0) {
+                        selectDay(state.selectedDay - 1);
+                    }
+                }
+            }, { passive: true });
+        })();
+
+        function updateOnlineStatus() {
+            const badge = document.getElementById('offline-badge');
+            if (!navigator.onLine) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            renderSchedule();
+            updateOnlineStatus();
+            setTimeout(scrollToCurrentTime, 150);
+
+            setInterval(() => {
+                renderSchedule();
+            }, 60000);
+        });
+    </script>
+</body>
+</html>
